@@ -2,11 +2,18 @@
 const stages = require('express').Router()
 const db = require('../models')
 const { Stage } = db
+const { Op } = require('sequelize')
 
 // FIND ALL STAGES INDEX ROUTE
 stages.get('/', async (req, res) => {
   try {
-    const foundStages = await Stage.findAll()
+    const foundStages = await Stage.findAll({
+      where: {
+        stage_name: {
+          [Op.like]: `%${req.query.name ? req.query.name : ''}%`
+        }
+      }
+    })
     res.status(200).json(foundStages)
   } catch (error) {
     res.status(500).json(error)
@@ -16,7 +23,11 @@ stages.get('/', async (req, res) => {
 // SHOW ROUTE
 stages.get('/:id', async (req, res) => {
   try {
-    const foundStage = await Stage.findByPk(req.params.id)
+    const foundStage = await Stage.findOne({
+      where: {
+        stage_id: req.params.id
+      }
+    })
     if (foundStage) {
       res.status(200).json(foundStage)
     } else {
