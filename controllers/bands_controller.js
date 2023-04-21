@@ -1,12 +1,12 @@
-//DEPENDENCIES
 const bands = require('express').Router()
 const db = require('../models')
-const { Band } = db
+const { Band, MeetGreet, Event, SetTime } = db
 const { Op } = require ('sequelize')
 
 // FIND ALL BANDS SHOW ROUTE
 bands.get('/', async (req, res) => {
     try {
+        console.log("Executing 'findAll' query...")
         const foundBands = await Band.findAll({
             order: [['available_start_time', 'ASC']],
             where: {
@@ -15,20 +15,45 @@ bands.get('/', async (req, res) => {
                 }
             }
         })
+        console.log("Found bands:", foundBands)
         res.status(200).json(foundBands)
     } catch (error) {
+        console.error("Error in 'findAll' query:", error)
         res.status(500).json(error)
     }
 })
 
 //FIND ONE
-bands.get('/:id', async (req, res) => {
+bands.get('/:name', async (req, res) => {
     try {
+        console.log(`Executing 'findOne' query for band '${req.params.name}'...`)
         const foundBand = await Band.findOne({
-            where: {band_id: req.params.id}
+            where: {name: req.params.name},
+            include:[ 
+                {
+                    model: MeetGreet, 
+                    as: "meet_greets",
+                    include: { 
+                        model: Event, 
+                        as: "event", 
+                        where: { name: { [Op.like]: `%${req.query.event_id ? req.query.event_id : ''}%` } }
+                    }
+                },
+                {
+                    model: SetTime,
+                    as: "set_times",
+                    include: { 
+                        model: Event, 
+                        as: "event",
+                        where: { name: { [Op.like]: `%${req.query.event ? req.query.event: ''}%` } }
+                     }
+                }
+            ]
         })
+        console.log("Found band:", foundBand)
         res.status(200).json(foundBand)
     } catch (error) {
+        console.error(`Error in 'findOne' query for band '${req.params.name}':`, error)
         res.status(500).json(error)
     }
 })
@@ -36,37 +61,45 @@ bands.get('/:id', async (req, res) => {
 //CREATE A BAND POST ROUTE
 bands.post('/', async (req, res) => {
     try {
+        console.log("Inserting new band...")
         const newBand = await Band.create(req.body)
+        console.log("New band inserted:", newBand)
         res.status(200).json({
             message: 'Successfully inserted a new band',
             data: newBand
         })
     } catch(err) {
+        console.error("Error inserting new band:", err)
         res.status(500).json(err)
     }
 })
 
 bands.put('/:id',async (req, res) => {
     try {
+        console.log(`Updating band with id ${req.params.id}...`)
         const updatedBands = await Band.update(req.body, {
             where: {
-                band_id: req.params.id
+                id: req.params.id
             }
         })
+        console.log(`Updated ${updatedBands[0]} band(s)`)
         res.status(200).json({
             message: `Successfully updated ${updatedBands[0]} band(s)`
         })
     } catch(err) {
-            res.status(500).json(err)
-        }
+        console.error(`Error updating band with id ${req.params.id}:`, err)
+        res.status(500).json(err)
+    }
 })
 
 //DELETE A BAND
 bands.delete('/:id', async (req, res) => {
     try {
+        console.log(`Deleting band with id ${req.params.id}...`)
         const deletedBands = await Band.destroy({
             where: {
-                band_id: req.params.id
+                id: req.params.id
+
             }
         })
         res.status(200).json({
