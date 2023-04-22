@@ -1,10 +1,8 @@
-//DEPENDENCIES
+// DEPENDENCIES
 const events = require('express').Router()
 const db = require('../models')
 const { Op } = require('sequelize')
-
-// Import the Event model
-const { Event } = db
+const { Event, Stage, StageEvent, MeetGreet, SetTime, Band } = db
 
 // FIND ALL EVENTS SHOW ROUTE
 events.get('/', async (req, res) => {
@@ -15,7 +13,14 @@ events.get('/', async (req, res) => {
         name: {
           [Op.like]: `%${req.query.name ? req.query.name : ''}%`
         }
-      }
+      },
+      include: [
+        {
+          model: db.Stage,
+          as: 'stages',
+          required: false
+        }
+      ]
     })
     res.status(200).json(foundEvents)
   } catch (error) {
@@ -24,10 +29,50 @@ events.get('/', async (req, res) => {
 })
 
 // FIND ONE EVENT
-events.get('/:id', async (req, res) => {
+events.get('/:name', async (req, res) => {
   try {
     const foundEvent = await Event.findOne({
-      where: { event_id: req.params.id }
+      where: { name: req.params.name },
+      attributes: { exclude: ['event_id'] },
+      include: [
+        {
+          model: MeetGreet,
+          as: 'meet_greets',
+          include: {
+            model: Band,
+            as: 'band',
+            attributes: ['name']
+          }
+        },
+        {
+          model: SetTime,
+          as: 'set_times',
+          attributes: ['start_time', 'end_time'],
+          include: [
+            {
+              model: Band,
+              as: 'band',
+              attributes: ['name']
+            },
+            {
+              model: Stage,
+              as: 'stage',
+              attributes: ['stage_name']
+            }
+          ]
+        },
+        {
+          model: Stage,
+          as: 'stages',
+          attributes: { exclude: ['stage_id'] },
+					through: { attributes: [] },
+        }
+      ],
+   order: [
+      [{model: MeetGreet, as:'meet_greets'}, 'meet_start_time', 'ASC'],
+      [{model: SetTime, as:'set_times'}, 'start_time', 'ASC'],
+      [{model: Stage, as: 'stages'}, 'stage_name', 'ASC']
+    ]
     })
     if (foundEvent) {
       res.status(200).json(foundEvent)

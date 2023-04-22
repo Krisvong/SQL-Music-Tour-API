@@ -8,6 +8,7 @@ bands.get('/', async (req, res) => {
     try {
         console.log("Executing 'findAll' query...")
         const foundBands = await Band.findAll({
+            attributes: ['band_id', ['name', 'band_name'], ['available_start_time', 'start_time'], 'end_time'],
             order: [['available_start_time', 'ASC']],
             where: {
                 name: { 
@@ -29,26 +30,33 @@ bands.get('/:name', async (req, res) => {
         console.log(`Executing 'findOne' query for band '${req.params.name}'...`)
         const foundBand = await Band.findOne({
             where: {name: req.params.name},
+            attributes: ['name', ['available_start_time', 'start_time'], 'end_time'],
             include:[ 
                 {
                     model: MeetGreet, 
                     as: "meet_greets",
+                    attributes: ['meet_start_time', 'meet_end_time'],
                     include: { 
                         model: Event, 
                         as: "event", 
-                        where: { name: { [Op.like]: `%${req.query.event_id ? req.query.event_id : ''}%` } }
+                        where: { name: { [Op.like]: `%${req.query.event ? req.query.event : ''}%` } }
                     }
                 },
                 {
                     model: SetTime,
                     as: "set_times",
+                    attributes: ['start_time', 'end_time'],
                     include: { 
                         model: Event, 
                         as: "event",
                         where: { name: { [Op.like]: `%${req.query.event ? req.query.event: ''}%` } }
                      }
                 }
-            ]
+            ],
+            order: [
+				[{ model: MeetGreet, as: 'meet_greets' }, { model: Event, as: 'event' }, 'date', 'DESC'],
+				[{ model: SetTime, as: 'set_times' }, { model: Event, as: 'event' }, 'date', 'DESC'],
+			],
         })
         console.log("Found band:", foundBand)
         res.status(200).json(foundBand)
@@ -74,6 +82,7 @@ bands.post('/', async (req, res) => {
     }
 })
 
+// UPDATE ONE BAND
 bands.put('/:id',async (req, res) => {
     try {
         console.log(`Updating band with id ${req.params.id}...`)
@@ -99,7 +108,6 @@ bands.delete('/:id', async (req, res) => {
         const deletedBands = await Band.destroy({
             where: {
                 id: req.params.id
-
             }
         })
         res.status(200).json({
